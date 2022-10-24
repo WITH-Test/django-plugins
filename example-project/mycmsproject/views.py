@@ -1,30 +1,36 @@
-from __future__ import absolute_import
 from django.http import HttpResponseRedirect
-
-from django.shortcuts import render
-from django.shortcuts import get_object_or_404
-
-import mycmsproject
+from django.shortcuts import get_object_or_404, render
 
 
 def index(request):
-    return render(request, 'index.html')
+    return render(request, "index.html")
 
 
 def content_list(request, plugin):
-    return render(request, 'content/list.html', {
-        'plugin': mycmsproject.plugins.ContentType.get_plugin(plugin),
-        'posts': mycmsproject.models.Content.objects.all(),
-    })
+    from .models import Content
+    from .plugins import ContentType
+
+    ct = ContentType.get_plugin(plugin)
+    posts = Content.objects.filter(plugin__name=plugin)
+
+    return render(
+        request,
+        "content/list.html",
+        {
+            "plugin": ct,
+            "posts": posts,
+        },
+    )
 
 
 def content_create(request, plugin):
     # Break circular import
-    import mycmsproject.forms
+    from .forms import ContentForm
+    from .plugins import ContentType
 
-    plugin = mycmsproject.plugins.ContentType.get_plugin(plugin)
-    if request.method == 'POST':
-        form = mycmsproject.forms.ContentForm(request.POST)
+    plugin = ContentType.get_plugin(plugin)
+    if request.method == "POST":
+        form = ContentForm(request.POST)
         if form.is_valid():
             content = form.save(commit=False)
             content.plugin = plugin.get_model()
@@ -33,17 +39,27 @@ def content_create(request, plugin):
         else:
             return "[ERROR] from views: {0}".format(form.errors)
     else:
-        form = mycmsproject.forms.ContentForm()
-    return render(request, 'content/form.html', {
-        'form': form,
-    })
+        form = ContentForm()
+    return render(
+        request,
+        "content/form.html",
+        {
+            "form": form,
+        },
+    )
 
 
 def content_read(request, pk, plugin):
-    plugin = mycmsproject.plugins.ContentType.get_plugin(plugin)
-    content = get_object_or_404(mycmsproject.models.Content,
-                                pk=pk, plugin=plugin.get_model())
-    return render(request, 'content/read.html', {
-        'plugin': plugin,
-        'content': content,
-    })
+    from .models import Content
+    from .plugins import ContentType
+
+    plugin = ContentType.get_plugin(plugin)
+    content = get_object_or_404(Content, pk=pk, plugin=plugin.get_model())
+    return render(
+        request,
+        "content/read.html",
+        {
+            "plugin": plugin,
+            "content": content,
+        },
+    )

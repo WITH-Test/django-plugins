@@ -1,47 +1,39 @@
-from __future__ import absolute_import
-
-from optparse import make_option
-
-from django import VERSION as django_version
-
 from django.core.management.base import BaseCommand
-from django.utils import six
 
-from djangoplugins.point import PluginMount
-from djangoplugins.utils import get_plugin_name, load_plugins, db_table_exists
-from djangoplugins.models import Plugin, PluginPoint, REMOVED, ENABLED
+from django_plugins.conf import settings
+from django_plugins.models import ENABLED, REMOVED, Plugin, PluginPoint
+from django_plugins.point import PluginMount
+from django_plugins.utils import db_table_exists, get_plugin_name, load_plugins
 
 
 class Command(BaseCommand):
-    help = ("Syncs the registered plugins and plugin points with the model "
-            "versions.")
-    if django_version <= (1, 8):
-        option_list = BaseCommand.option_list + (
-            make_option('--delete',
-                        action='store_true',
-                        dest='delete',
-                        default=False,
-                        help='delete the REMOVED Plugin and PluginPoint '
-                        'instances.'),
-        )
-
+    help = "Syncs the registered plugins and plugin points with the model versions."
     requires_model_validation = True
 
     def add_arguments(self, parser):
-        parser.add_argument('--delete',
-            action='store_true',
-            dest='delete',
-            help='delete the REMOVED Plugin and PluginPoint '
-            'instances. ')
+        parser.add_argument(
+            "--delete",
+            action="store_true",
+            dest="delete",
+            help="delete the REMOVED Plugin and PluginPoint instances. ",
+        )
+        parser.add_argument(
+            "--module",
+            default=settings.PLUGINS_MODULE,
+            dest="module",
+            help="find and load this module within applications",
+        )
 
     def handle(self, *args, **options):
-        sync = SyncPlugins(options.get('delete'), options.get('verbosity'))
+        sync = SyncPlugins(
+            options.get("module"), options.get("delete"), options.get("verbosity")
+        )
         sync.all()
 
 
-class SyncPlugins():
+class SyncPlugins:
     """
-    In most methods ``src`` and ``dst`` variables are used, they meaning is:
+    In most methods ``src`` and ``dst`` variables are used, their meaning is:
 
     ``src``
         source, registered plugin point objects
@@ -50,8 +42,13 @@ class SyncPlugins():
         destination, database
     """
 
-    def __init__(self, delete_removed=False, verbosity=1):
-        load_plugins()
+    def __init__(
+        self,
+        plugins_module: str,
+        delete_removed: bool = False,
+        verbosity: int = 1,
+    ):
+        load_plugins(plugins_module)
         self.delete_removed = delete_removed
         self.verbosity = int(verbosity)
 
@@ -63,19 +60,18 @@ class SyncPlugins():
         return dict([(get_plugin_name(i), i) for i in classes])
 
     def get_instances_dict(self, qs):
-        return dict((i.pythonpath, i) for i in qs)
+        return dict((i.import_string, i) for i in qs)
 
     def available(self, src, dst, model):
         """
         Iterate over all registered plugins or plugin points and prepare to add
         them to database.
         """
-        for name, point in six.iteritems(src):
+        for name, point in src.items():
             inst = dst.pop(name, None)
             if inst is None:
-                self.print_(1, "Registering %s for %s" % (model.__name__,
-                                                          name))
-                inst = model(pythonpath=name)
+                self.print_(1, "Registering %s for %s" % (model.__name__, name))
+                inst = model(import_string=name)
             if inst.status == REMOVED:
                 self.print_(1, "Updating %s for %s" % (model.__name__, name))
                 # re-enable a previously removed plugin point and its plugins
@@ -87,7 +83,7 @@ class SyncPlugins():
         Mark all missing plugins, that exists in database, but are not
         registered.
         """
-        for inst in six.itervalues(dst):
+        for inst in dst.values():
             if inst.status != REMOVED:
                 inst.status = REMOVED
                 inst.save()
@@ -103,10 +99,10 @@ class SyncPlugins():
         dst = self.get_instances_dict(PluginPoint.objects.all())
 
         for point, inst in self.available(src, dst, PluginPoint):
-            if hasattr(point, '_title'):
+            if hasattr(point, "_title"):
                 inst.title = point._title
             else:
-                inst.title = inst.pythonpath.split('.')[-1]
+                inst.title = inst.import_string.split(".")[-1]
             inst.save()
             self.plugins(point, inst)
 
@@ -121,9 +117,9 @@ class SyncPlugins():
 
         for plugin, inst in self.available(src, dst, Plugin):
             inst.point = point_inst
-            inst.name = getattr(plugin, 'name', None)
-            if hasattr(plugin, 'title'):
-                inst.title = six.text_type(getattr(plugin, 'title'))
+            inst.name = getattr(plugin, "name", None)
+            if hasattr(plugin, "title"):
+                inst.title = str(getattr(plugin, "title"))
             inst.save()
 
         self.missing(dst)
@@ -132,14 +128,8 @@ class SyncPlugins():
         """
         Synchronize all registered plugins and plugin points to database.
         """
-        # Django >= 1.9 changed something with the migration logic causing
-        # plugins to be executed before the corresponding database tables
-        # exist. This method will only return something if the database
-        # tables have already been created.
-        # XXX: I don't fully understand the issue and there should be
-        # another way but this appears to work fine.
-        if django_version >= (1, 9) and (
-                not db_table_exists(Plugin._meta.db_table) or
-                not db_table_exists(PluginPoint._meta.db_table)):
+        if not db_table_exists(Plugin._meta.db_table) or not db_table_exists(
+            PluginPoint._meta.db_table
+        ):
             return
         self.points()

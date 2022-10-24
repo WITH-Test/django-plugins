@@ -1,0 +1,17 @@
+[run]
+branch = 1
+data = coverage/.coverage-$PPID
+omit =
+  *apps.py,
+  *migrations/*,
+  *settings*,
+  tests.py,
+  *urls.py,
+  *wsgi*,
+  *asgi*,
+  manage.py
+  mycms*
+
+
+[html]
+directory = ../htmlcov

@@ -1,0 +1,42 @@
+[tool.poetry]
+name = "django-plugins"
+version = "0.4.0"
+description = ""
+authors = [
+    "Lion Krischer <lion.krischer@googlemail.com>",
+]
+readme = "README.md"
+packages = [{ include = "django_plugins" }]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+Django = "*"
+django-dirtyfields = "^1.8.2"
+
+[tool.poetry.group.dev.dependencies]
+tox-poetry = "^0.4.1"
+tox = "^3.26.0"
+tox-pyenv = "^1.1.0"
+pytest-django = "^4.5.2"
+pytest-cov = "^4.0.0"
+isort = "^5.10.1"
+black = "^22.8.0"
+Django = "^4.1.1"
+
+[tool.poetry.group.docs.dependencies]
+sphinx-bootstrap-theme = "^0.8.1"
+sphinx-pyproject = "^0.1.0"
+Sphinx = "^5.2.3"
+
+[tool.isort]
+profile = "black"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.sphinx-pyproject]
+source-dir = "docs/"
+build-dir  = "docs/build"
+all_files  = 1
+pload-dir = "docs/build/html"

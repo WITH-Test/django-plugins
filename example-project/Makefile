@@ -1,16 +1,21 @@
+PYTHON_BIN=./py
+
 .PHONY: all
-all: bin/python db.sqlite3
+all: db.sqlite3
 
 bin/python:
-	virtualenv --no-site-packages .
-	cd .. && $(CURDIR)/bin/python setup.py develop
+	@echo -e '#!/usr/bin/env bash\npoetry run python "$$@"\n' > py
+	@chmod u+x py
 
-db.sqlite3:
-	bin/python manage.py migrate
+db.sqlite3: bin/python
+	$(PYTHON_BIN) manage.py migrate
 
 .PHONY: run
-run:
-	bin/python manage.py runserver
+run: bin/python
+	$(PYTHON_BIN) manage.py runserver
+
+tox: bin/python
+	$(PYTHON_BIN) -m tox
 
 
 .PHONY: clean

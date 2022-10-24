@@ -1,29 +1,31 @@
-from __future__ import absolute_import
+from django.urls import path, reverse
 
-from django.conf.urls import url
-from django.core.urlresolvers import reverse
+from django_plugins.point import PluginPoint
 
-from djangoplugins.point import PluginPoint
-
-import mycmsproject.views
+from .views import content_create, content_list, content_read
 
 
 class ContentType(PluginPoint):
-    urls = [
-        url(r'^$', mycmsproject.views.content_list, name='content-list'),
-        url(r'^create/$', mycmsproject.views.content_create,
-            name='content-create')
-    ]
+    @property
+    def instance_urls(self):
+        return [path(r"<int:pk>/", content_read, name=self._suffix("content-read"))]
 
-    instance_urls = [
-        url(r'^$', mycmsproject.views.content_read, name='content-read')
-    ]
+    def _suffix(self, name):
+        return f"{name}-{self.get_plugin().name}"
+
+    @property
+    def urls(self):
+        return [
+            path(r"", content_list, name=self._suffix("content-list")),
+            path(r"create/", content_create, name=self._suffix("content-create")),
+            # path(r"<int:id>/", content_read, name=self._suffix("content-read"))
+        ]
 
     def get_list_url(self):
-        return reverse('content-list')
+        return reverse(self._suffix("content-list"))
 
     def get_create_url(self):
-        return reverse('content-create')
+        return reverse(self._suffix("content-create"))
 
     def get_read_url(self, content):
-        return reverse('content-read', args=[content.pk])
+        return reverse(self._suffix("content-read"), args=[content.pk])
