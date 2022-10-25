@@ -1,6 +1,8 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 
+from django_plugins.conf import settings
+
 from .models import ENABLED, Plugin
 from .models import PluginPoint as PluginPointModel
 from .utils import db_table_exists, get_plugin_name
@@ -8,8 +10,30 @@ from .utils import db_table_exists, get_plugin_name
 _PLUGIN_POINT = "<class 'django_plugins.point.PluginPoint'>"
 
 
-def is_plugin_point(cls):
-    return repr(cls.__base__) == _PLUGIN_POINT
+def is_plugin_point(cls, gen: int = settings.PLUGINS_ALLOW_POINT_SUBLEVELS):
+    """
+    Detect a PluginPoint subclass. Disallow more than `gen` levels
+    of inheritance.
+
+    Detection is done by checking the repr of the bases because the class
+    is needed at its own definition time.
+
+    Parameters
+    ----------
+    cls
+        Class to check.
+    gen
+        Numbers of generations
+
+    Returns
+    -------
+        Whether cls is a PluginPoint implementation up to gen levels deep.
+    """
+    if gen < 1:
+        return _PLUGIN_POINT in (repr(base) for base in cls.__bases__)
+
+    # allow n levels of subclassing
+    return _PLUGIN_POINT in (repr(base) for base in cls.__bases__[: gen + 1])
 
 
 class PluginMount(type):
@@ -108,7 +132,7 @@ class PluginPoint(metaclass=PluginMount):
             )
 
     @classmethod
-    def get_plugins(cls):
+    def get_plugins(cls, status=ENABLED):
         """
         Returns all plugin instances of plugin point, passing all args and
         kwargs to plugin constructor.
@@ -117,13 +141,13 @@ class PluginPoint(metaclass=PluginMount):
             return
 
         if is_plugin_point(cls):
-            for plugin_model in cls.get_plugins_qs():
+            for plugin_model in cls.get_plugins_qs(status=status):
                 yield plugin_model.get_plugin()
         else:
             raise Exception(_("This method is only available to plugin point classes."))
 
     @classmethod
-    def get_plugins_qs(cls):
+    def get_plugins_qs(cls, status=ENABLED):
         """
         Returns query set of all plugins belonging to plugin point.
 
@@ -136,7 +160,7 @@ class PluginPoint(metaclass=PluginMount):
         if is_plugin_point(cls):
             point_import_string = cls.get_import_string()
             return Plugin.objects.filter(
-                point__import_string=point_import_string, status=ENABLED
+                point__import_string=point_import_string, status=status
             ).order_by("index")
         else:
             raise Exception(_("This method is only available to plugin point classes."))

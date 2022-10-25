@@ -9,5 +9,5 @@ class DjangoPluginsConfig(AppConfig):
     verbose_name = "Django Plugins"
 
     def ready(self):
-        if settings.PLUGINS_AUTOLOAD:
+        if settings.PLUGINS_AUTO_LOAD:
             load_plugins(settings.PLUGINS_MODULE)
