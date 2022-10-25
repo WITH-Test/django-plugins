@@ -43,12 +43,12 @@ class PluginManager(models.Manager):
     def get_plugin(self, plugin: str):
         return self.get(import_string=get_plugin_name(plugin))
 
-    def get_plugins_of(self, point: PluginPoint):
+    def get_plugins_of(self, point: PluginPoint, status=ENABLED):
         """
         Return the plugins that implement this PluginPoint.
         Only enabled plugins are returned.
         """
-        return self.filter(point__import_string=get_plugin_name(point), status=ENABLED)
+        return self.filter(point__import_string=get_plugin_name(point), status=status)
 
     def get_by_natural_key(self, name):
         return self.get(import_string=name)

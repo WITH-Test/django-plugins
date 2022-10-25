@@ -70,6 +70,8 @@ class SyncPlugins:
         for name, point in src.items():
             inst = dst.pop(name, None)
             if inst is None:
+                inst = model.objects.filter(import_string=name).first() or None
+            if inst is None:
                 self.print_(1, "Registering %s for %s" % (model.__name__, name))
                 inst = model(import_string=name)
             if inst.status == REMOVED:
